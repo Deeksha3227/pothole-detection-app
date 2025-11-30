@@ -7,7 +7,7 @@ import pandas as pd
 
 #  Update this with your ngrok tunnel from Colab
 import os
-COLAB_NGROK_URL = os.getenv("COLAB_NGROK_URL")
+COLAB_NGROK_URL = os.getenv("https://duellistic-gavin-ciliately.ngrok-free.dev")
 
 
 # --- 1. UI Configuration ---

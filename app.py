@@ -5,8 +5,8 @@ import io
 import base64
 import pandas as pd
 
-#  Update this with your ngrok tunnel from Colab
-COLAB_NGROK_URL = os.getenv("https://your-ngrok-url.ngrok-free.app")
+# ⭐ UPDATE THIS with the EXACT ngrok URL printed in Colab (NO /detect at the end)
+COLAB_NGROK_URL = "https://duellistic-gavin-ciliately.ngrok-free.dev"
 
 
 # --- 1. UI Configuration ---
@@ -21,42 +21,58 @@ selected_model = st.selectbox("**Select Model for Detection:**", MODEL_OPTIONS)
 # --- 3. File Upload ---
 uploaded_file = st.file_uploader("**Upload a Pothole Image**", type=['png', 'jpg', 'jpeg'])
 
-# --- 4. Function to Connect to Colab Backend ---
+
+# --- 4. Backend Call Function ---
 def run_pothole_detection_logic(model_name, image_to_process):
     """
     Sends the image to Colab API with selected model name and retrieves results.
     """
-    # Ensure image is RGB
+
+    # Ensure correct RGB format
     if image_to_process.mode != "RGB":
         image_to_process = image_to_process.convert("RGB")
 
-    # Convert image to byte stream
+    # Convert image to bytes
     img_byte_arr = io.BytesIO()
     image_to_process.save(img_byte_arr, format='JPEG')
     img_byte_arr.seek(0)
 
     files = {'file': ('image.jpg', img_byte_arr, 'image/jpeg')}
-    data = {'model': model_name}
+
+    # FIX ⭐ normalize model name (backend expects lowercase)
+    data = {'model': model_name.strip().lower()}
 
     try:
-        response = requests.post(f"{COLAB_NGROK_URL}/detect", files=files, data=data)
+        # FIX ⭐ add timeout & correct /detect URL
+        response = requests.post(
+            f"{COLAB_NGROK_URL}/detect",
+            files=files,
+            data=data,
+            timeout=120
+        )
     except Exception as e:
         raise ConnectionError(f"Failed to connect to Colab API: {e}")
 
     if response.status_code == 200:
         results = response.json()
+
+        # Decode returned annotated image
         img_data = base64.b64decode(results['detected_image_b64'])
         output_image = Image.open(io.BytesIO(img_data))
+
         if output_image.mode != "RGB":
             output_image = output_image.convert("RGB")
 
         return output_image, results.get('accuracy', 'N/A'), results.get('pothole_count', 0)
+
     else:
         try:
             error_message = response.json().get('error', f"Unknown error ({response.status_code})")
         except:
             error_message = f"Unexpected API response ({response.status_code})"
+
         raise ConnectionError(error_message)
+
 
 # --- 5. Main Execution ---
 if uploaded_file is not None:
@@ -74,6 +90,7 @@ if uploaded_file is not None:
         with st.spinner(f'Running {selected_model.upper()}... Please wait.'):
             try:
                 output_image, accuracy, count = run_pothole_detection_logic(selected_model, image_to_process)
+
                 st.success(' Detection Complete!')
                 st.subheader("Detection Results")
 
@@ -87,6 +104,7 @@ if uploaded_file is not None:
 
             except Exception as e:
                 st.error(f"Error during detection: {e}")
+
 
     # --- Compare All Models ---
     if compare_button:
@@ -102,14 +120,13 @@ if uploaded_file is not None:
                     "Detected Potholes": count
                 })
             except Exception as e:
-                st.warning(f" {model.upper()} failed: {e}")
+                st.warning(f"{model.upper()} failed: {e}")
                 results_data.append({
                     "Model Name": model.upper(),
                     "Accuracy (%)": 0,
                     "Detected Potholes": "Error"
                 })
 
-        # Sort by Accuracy descending
         df_results = pd.DataFrame(results_data).sort_values(by="Accuracy (%)", ascending=False).reset_index(drop=True)
 
         st.success(" Comparison Complete!")

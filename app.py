@@ -6,7 +6,8 @@ import base64
 import pandas as pd
 
 #  Update this with your ngrok tunnel from Colab
-COLAB_NGROK_URL = "https://duellistic-gavin-ciliately.ngrok-free.dev"
+import os
+COLAB_NGROK_URL = os.getenv("https://duellistic-gavin-ciliately.ngrok-free.dev")
 
 # --- 1. UI Configuration ---
 st.set_page_config(page_title="Pothole Detector", layout="centered")
